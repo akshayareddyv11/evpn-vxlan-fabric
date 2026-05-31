@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EVPN-VXLAN Fabric Lab Topology</title>
+<style>
+  :root {
+    --bg: #07111f;
+    --panel: #0b1b30;
+    --panel2: #0e243d;
+    --blue: #38bdf8;
+    --green: #22c55e;
+    --purple: #a855f7;
+    --amber: #f59e0b;
+    --text: #e5eefb;
+    --muted: #9fb4cc;
+    --line: #2dd4bf;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 30%),
+      radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.16), transparent 32%),
+      linear-gradient(135deg, #040814 0%, var(--bg) 55%, #020617 100%);
+    color: var(--text);
+    font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+    overflow-x: hidden;
+  }
+
+  .page {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 34px 34px 42px;
+  }
+
+  .title {
+    text-align: center;
+    margin-bottom: 22px;
+  }
+
+  .title h1 {
+    margin: 0;
+    letter-spacing: 0.06em;
+    font-size: clamp(30px, 4vw, 56px);
+    font-weight: 850;
+    color: #f8fbff;
+    text-shadow: 0 0 28px rgba(56, 189, 248, 0.4);
+  }
+
+  .title p {
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 18px;
+  }
+
+  .top-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: linear-gradient(180deg, rgba(14, 36, 61, 0.95), rgba(9, 22, 39, 0.95));
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.25);
+  }
+
+  .card .label {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .card .value {
+    margin-top: 7px;
+    font-weight: 800;
+    font-size: 22px;
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 22px;
+  }
+
+  .fabric {
+    position: relative;
+    min-height: 780px;
+    background:
+      linear-gradient(90deg, rgba(148,163,184,0.04) 1px, transparent 1px),
+      linear-gradient(rgba(148,163,184,0.04) 1px, transparent 1px),
+      rgba(4, 12, 25, 0.62);
+    background-size: 36px 36px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 26px;
+    box-shadow: inset 0 0 80px rgba(56, 189, 248, 0.08), 0 22px 70px rgba(0,0,0,0.35);
+    overflow: hidden;
+  }
+
+  svg.links {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .underlay {
+    stroke: rgba(56, 189, 248, 0.96);
+    stroke-width: 4;
+    filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.55));
+  }
+
+  .overlay {
+    stroke: var(--purple);
+    stroke-width: 4;
+    stroke-dasharray: 14 12;
+    fill: none;
+    filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.65));
+    animation: dash 3s linear infinite;
+  }
+
+  .access {
+    stroke: rgba(226, 232, 240, 0.88);
+    stroke-width: 4;
+  }
+
+  @keyframes dash {
+    to { stroke-dashoffset: -52; }
+  }
+
+  .packet {
+    filter: drop-shadow(0 0 10px rgba(34, 197, 94, 0.9));
+    animation: movePacket 5.5s ease-in-out infinite;
+  }
+
+  @keyframes movePacket {
+    0%   { offset-distance: 0%; opacity: 0; }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { offset-distance: 100%; opacity: 0; }
+  }
+
+  .node {
+    position: absolute;
+    width: 180px;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 5;
+  }
+
+  .device {
+    width: 82px;
+    height: 82px;
+    margin: 0 auto 10px;
+    border-radius: 20px;
+    display: grid;
+    place-items: center;
+    color: white;
+    font-size: 38px;
+    font-weight: 900;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 18px 40px rgba(0,0,0,0.35);
+  }
+
+  .spine .device {
+    background: linear-gradient(145deg, #0ea5e9, #1e40af);
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.35), 0 18px 40px rgba(0,0,0,0.35);
+  }
+
+  .leaf .device {
+    background: linear-gradient(145deg, #22c55e, #166534);
+    box-shadow: 0 0 28px rgba(34, 197, 94, 0.35), 0 18px 40px rgba(0,0,0,0.35);
+  }
+
+  .host .device {
+    background: linear-gradient(145deg, #64748b, #1e293b);
+    border-radius: 16px;
+    font-size: 32px;
+  }
+
+  .node h3 {
+    margin: 0;
+    font-size: 20px;
+    color: #fff;
+  }
+
+  .node .ip {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 650;
+  }
+
+  .node .role {
+    margin-top: 3px;
+    color: var(--green);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+  }
+
+  .spine1 { left: 30%; top: 17%; }
+  .spine2 { left: 70%; top: 17%; }
+  .leaf1  { left: 25%; top: 48%; }
+  .leaf2  { left: 75%; top: 48%; }
+  .host1  { left: 25%; top: 78%; }
+  .host2  { left: 75%; top: 78%; }
+
+  .vni-badge {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    z-index: 4;
+    padding: 18px 26px;
+    border-radius: 18px;
+    background: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(168, 85, 247, 0.65);
+    color: #f3e8ff;
+    text-align: center;
+    box-shadow: 0 0 36px rgba(168, 85, 247, 0.18);
+  }
+
+  .vni-badge strong {
+    display: block;
+    font-size: 22px;
+    margin-bottom: 6px;
+  }
+
+  .flow {
+    position: absolute;
+    left: 5%;
+    right: 5%;
+    bottom: 30px;
+    z-index: 4;
+    padding: 20px;
+    border-radius: 22px;
+    background: rgba(3, 8, 20, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+  }
+
+  .flow h3 {
+    margin: 0 0 16px;
+    text-align: center;
+    color: #dbeafe;
+    letter-spacing: 0.08em;
+  }
+
+  .flow-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+  }
+
+  .step {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 16px;
+    padding: 14px;
+    text-align: center;
+    min-height: 120px;
+  }
+
+  .step .num {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: var(--blue);
+    color: #001627;
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+
+  .step strong {
+    display: block;
+    margin-bottom: 6px;
+    color: #fff;
+  }
+
+  .step span {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .sidebar {
+    display: grid;
+    gap: 14px;
+  }
+
+  .side-card {
+    background: rgba(8, 18, 33, 0.86);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 18px 46px rgba(0,0,0,0.28);
+  }
+
+  .side-card h3 {
+    margin: 0 0 12px;
+    color: #dbeafe;
+    font-size: 17px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .kv, .check {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--muted);
+    margin: 8px 0;
+    font-size: 14px;
+  }
+
+  .kv b {
+    color: var(--text);
+  }
+
+  .check {
+    justify-content: flex-start;
+    align-items: center;
+  }
+
+  .check::before {
+    content: "✓";
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.18);
+    color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.45);
+    font-weight: 900;
+  }
+
+  .footer {
+    margin-top: 18px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  @media (max-width: 1100px) {
+    .main, .top-cards { grid-template-columns: 1fr; }
+    .fabric { min-height: 900px; }
+    .sidebar { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 760px) {
+    .page { padding: 18px; }
+    .sidebar { grid-template-columns: 1fr; }
+    .flow-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="title">
+      <h1>EVPN‑VXLAN FABRIC LAB</h1>
+      <p>2‑Spine / 2‑Leaf Architecture • OSPF Underlay • iBGP EVPN Overlay • VNI 10010</p>
+    </div>
+
+    <div class="top-cards">
+      <div class="card"><div class="label">Underlay</div><div class="value">OSPF Area 0</div></div>
+      <div class="card"><div class="label">Overlay</div><div class="value">iBGP EVPN</div></div>
+      <div class="card"><div class="label">ASN</div><div class="value">65000</div></div>
+      <div class="card"><div class="label">VXLAN</div><div class="value">VNI 10010</div></div>
+    </div>
+
+    <div class="main">
+      <section class="fabric">
+        <svg class="links" viewBox="0 0 1000 780" preserveAspectRatio="none">
+          <!-- underlay -->
+          <line class="underlay" x1="300" y1="130" x2="250" y2="370"/>
+          <line class="underlay" x1="300" y1="130" x2="750" y2="370"/>
+          <line class="underlay" x1="700" y1="130" x2="250" y2="370"/>
+          <line class="underlay" x1="700" y1="130" x2="750" y2="370"/>
+          <!-- access -->
+          <line class="access" x1="250" y1="390" x2="250" y2="600"/>
+          <line class="access" x1="750" y1="390" x2="750" y2="600"/>
+          <!-- overlay tunnel -->
+          <path class="overlay" d="M250 390 C 380 275, 620 275, 750 390"/>
+          <path id="packetPath" d="M250 600 L250 390 C380 275, 620 275, 750 390 L750 600" fill="none"/>
+          <circle r="9" fill="#22c55e" class="packet" style="offset-path: path('M250 600 L250 390 C380 275, 620 275, 750 390 L750 600');" />
+          <circle r="6" fill="#a7f3d0" class="packet" style="offset-path: path('M250 600 L250 390 C380 275, 620 275, 750 390 L750 600'); animation-delay: .7s;" />
+        </svg>
+
+        <div class="node spine spine1">
+          <div class="device">⇄</div>
+          <h3>Spine1</h3>
+          <div class="ip">1.1.1.1/32</div>
+          <div class="role">Route Reflector</div>
+        </div>
+
+        <div class="node spine spine2">
+          <div class="device">⇄</div>
+          <h3>Spine2</h3>
+          <div class="ip">2.2.2.2/32</div>
+          <div class="role">Route Reflector</div>
+        </div>
+
+        <div class="node leaf leaf1">
+          <div class="device">⇆</div>
+          <h3>Leaf1</h3>
+          <div class="ip">11.11.11.11/32</div>
+          <div class="role">VTEP</div>
+        </div>
+
+        <div class="node leaf leaf2">
+          <div class="device">⇆</div>
+          <h3>Leaf2</h3>
+          <div class="ip">22.22.22.22/32</div>
+          <div class="role">VTEP</div>
+        </div>
+
+        <div class="node host host1">
+          <div class="device">▣</div>
+          <h3>Host1</h3>
+          <div class="ip">192.168.10.11/24</div>
+        </div>
+
+        <div class="node host host2">
+          <div class="device">▣</div>
+          <h3>Host2</h3>
+          <div class="ip">192.168.10.22/24</div>
+        </div>
+
+        <div class="vni-badge">
+          <strong>EVPN Overlay</strong>
+          VXLAN Tunnel • VNI 10010 • UDP 4789
+        </div>
+
+        <div class="flow">
+          <h3>TRAFFIC FLOW: HOST1 → HOST2</h3>
+          <div class="flow-row">
+            <div class="step"><div class="num">1</div><strong>Host1 Sends</strong><span>Traffic destined to 192.168.10.22</span></div>
+            <div class="step"><div class="num">2</div><strong>Leaf1 Learns</strong><span>MAC learned locally on access port</span></div>
+            <div class="step"><div class="num">3</div><strong>EVPN Control Plane</strong><span>Type‑2 MAC route advertises host reachability</span></div>
+            <div class="step"><div class="num">4</div><strong>VXLAN Encapsulation</strong><span>Frame mapped into VNI 10010 and sent over OSPF underlay</span></div>
+            <div class="step"><div class="num">5</div><strong>Leaf2 Delivers</strong><span>VXLAN decapsulated and forwarded to Host2</span></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <div class="side-card">
+          <h3>Loopbacks</h3>
+          <div class="kv"><span>Spine1</span><b>1.1.1.1/32</b></div>
+          <div class="kv"><span>Spine2</span><b>2.2.2.2/32</b></div>
+          <div class="kv"><span>Leaf1</span><b>11.11.11.11/32</b></div>
+          <div class="kv"><span>Leaf2</span><b>22.22.22.22/32</b></div>
+        </div>
+
+        <div class="side-card">
+          <h3>Underlay Links</h3>
+          <div class="kv"><span>Spine1 ↔ Leaf1</span><b>10.0.0.0/31</b></div>
+          <div class="kv"><span>Spine1 ↔ Leaf2</span><b>10.0.0.2/31</b></div>
+          <div class="kv"><span>Spine2 ↔ Leaf1</span><b>10.0.0.4/31</b></div>
+          <div class="kv"><span>Spine2 ↔ Leaf2</span><b>10.0.0.6/31</b></div>
+        </div>
+
+        <div class="side-card">
+          <h3>EVPN/VXLAN</h3>
+          <div class="kv"><span>Control Plane</span><b>iBGP EVPN</b></div>
+          <div class="kv"><span>ASN</span><b>65000</b></div>
+          <div class="kv"><span>VNI</span><b>10010</b></div>
+          <div class="kv"><span>Network</span><b>192.168.10.0/24</b></div>
+        </div>
+
+        <div class="side-card">
+          <h3>Validation</h3>
+          <div class="check">OSPF neighbors full</div>
+          <div class="check">BGP EVPN peers established</div>
+          <div class="check">Type‑2 MAC routes learned</div>
+          <div class="check">Type‑3 IMET routes present</div>
+          <div class="check">Host‑to‑host ping successful</div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="footer">
+      Built with FRRouting, Containerlab, Linux Bridge, VXLAN, OSPF, and iBGP EVPN.
+    </div>
+  </div>
+</body>
+</html>
